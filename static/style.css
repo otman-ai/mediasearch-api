@@ -223,3 +223,17 @@ button.secondary:hover { border-color: var(--accent); }
   font-size: 13px;
   padding: 8px 0;
 }
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 18px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.pagination button {
+  padding: 6px 14px;
+}

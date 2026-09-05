@@ -67,6 +67,24 @@ def _download_url(path: str) -> str:
     return f"/api/outputs/{os.path.basename(path)}"
 
 
+def _pagination_args():
+    page = max(request.args.get("page", default=1, type=int) or 1, 1)
+    page_size = request.args.get("page_size", default=24, type=int) or 24
+    page_size = min(max(page_size, 1), 200)
+    return page, page_size
+
+
+def _paginated_response(key: str, data: dict, page: int, page_size: int):
+    total = data["total"]
+    return jsonify(
+        **{key: data["items"]},
+        total=total,
+        page=page,
+        page_size=page_size,
+        has_more=page * page_size < total,
+    )
+
+
 def register_routes(app: Flask):
     @app.get("/")
     def index():
@@ -79,7 +97,9 @@ def register_routes(app: Flask):
     # ---------------------------------------------------------------- video search
     @app.get("/api/videos")
     def videos_list():
-        return jsonify(videos=list_indexed_videos())
+        page, page_size = _pagination_args()
+        data = list_indexed_videos(page=page, page_size=page_size)
+        return _paginated_response("videos", data, page, page_size)
 
     @app.post("/api/videos/insert")
     def videos_insert():
@@ -111,7 +131,9 @@ def register_routes(app: Flask):
     # ---------------------------------------------------------------- image search
     @app.get("/api/images")
     def images_list():
-        return jsonify(images=list_indexed_images())
+        page, page_size = _pagination_args()
+        data = list_indexed_images(page=page, page_size=page_size)
+        return _paginated_response("images", data, page, page_size)
 
     @app.post("/api/images/insert")
     def images_insert():

@@ -1,4 +1,6 @@
 const API = "/api";
+const VIDEO_PAGE_SIZE = 24;
+const IMAGE_PAGE_SIZE = 30;
 
 // ------------------------------------------------------------------ helpers
 function mediaUrl(path) {
@@ -21,6 +23,10 @@ function setStatus(el, message, kind) {
   el.className = "status" + (kind ? ` ${kind}` : "");
 }
 
+function renderEmpty(container, message) {
+  container.innerHTML = `<div class="empty">${message}</div>`;
+}
+
 async function api(path, options) {
   const res = await fetch(`${API}${path}`, options);
   let data = null;
@@ -35,6 +41,23 @@ async function api(path, options) {
   return data;
 }
 
+// Renders Prev/Next controls into `container` for a paginated {page, page_size,
+// total} response and wires them to call `onChange(newPage)`.
+function renderPagination(container, { page, page_size, total }, onChange) {
+  if (!total) {
+    container.innerHTML = "";
+    return;
+  }
+  const totalPages = Math.max(1, Math.ceil(total / page_size));
+  container.innerHTML = `
+    <button type="button" class="secondary" data-dir="prev" ${page <= 1 ? "disabled" : ""}>← Prev</button>
+    <span>Page ${page} of ${totalPages} (${total} total)</span>
+    <button type="button" class="secondary" data-dir="next" ${page >= totalPages ? "disabled" : ""}>Next →</button>
+  `;
+  container.querySelector('[data-dir="prev"]').addEventListener("click", () => onChange(page - 1));
+  container.querySelector('[data-dir="next"]').addEventListener("click", () => onChange(page + 1));
+}
+
 // ---------------------------------------------------------------------- tabs
 document.querySelectorAll(".tab-btn").forEach((btn) => {
   btn.addEventListener("click", () => {
@@ -47,38 +70,51 @@ document.querySelectorAll(".tab-btn").forEach((btn) => {
 
 // -------------------------------------------------------------------- videos
 const videoList = document.getElementById("video-list");
+const videoPagination = document.getElementById("video-pagination");
 const videoSearchResults = document.getElementById("video-search-results");
 const videoSearchStatus = document.getElementById("video-search-status");
 const videoUploadStatus = document.getElementById("video-upload-status");
 
-function renderEmpty(container, message) {
-  container.innerHTML = `<div class="empty">${message}</div>`;
-}
-
-async function loadVideos() {
+async function loadVideos(page = 1) {
   videoList.innerHTML = `<div class="empty">Loading…</div>`;
+  videoPagination.innerHTML = "";
   try {
-    const { videos } = await api("/videos");
-    if (!videos.length) {
-      renderEmpty(videoList, "No videos indexed yet.");
+    const data = await api(`/videos?page=${page}&page_size=${VIDEO_PAGE_SIZE}`);
+    if (!data.videos.length) {
+      renderEmpty(videoList, page > 1 ? "No more videos." : "No videos indexed yet.");
       return;
     }
     videoList.innerHTML = "";
-    videos.forEach((v) => {
+    data.videos.forEach((v) => {
       const card = document.createElement("div");
       card.className = "video-card";
+      // preload="none": with a large index only the current page's cards
+      // exist in the DOM at once, but each <video> would otherwise still
+      // fetch metadata as soon as it's inserted.
       card.innerHTML = `
-        <video controls preload="metadata" src="${mediaUrl(v.path)}"></video>
+        <video controls preload="none" src="${mediaUrl(v.path)}"></video>
         <div class="meta">${filenameOf(v.path)} &middot; ${formatTime(v.duration)}</div>
       `;
       videoList.appendChild(card);
     });
+    renderPagination(videoPagination, data, loadVideos);
   } catch (err) {
     renderEmpty(videoList, `Failed to load videos: ${err.message}`);
   }
 }
 
-document.getElementById("video-refresh-btn").addEventListener("click", loadVideos);
+// New uploads are appended to the end of the index, so jump to the last page
+// (instead of page 1) to show the videos that were just inserted.
+async function loadLastVideoPage() {
+  try {
+    const probe = await api(`/videos?page=1&page_size=1`);
+    loadVideos(Math.max(1, Math.ceil(probe.total / VIDEO_PAGE_SIZE)));
+  } catch (err) {
+    loadVideos(1);
+  }
+}
+
+document.getElementById("video-refresh-btn").addEventListener("click", () => loadVideos(1));
 
 document.getElementById("video-upload-form").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -95,7 +131,7 @@ document.getElementById("video-upload-form").addEventListener("submit", async (e
     const data = await api("/videos/insert", { method: "POST", body: form });
     setStatus(videoUploadStatus, `Indexed ${data.inserted.length} video(s).`, "success");
     input.value = "";
-    loadVideos();
+    loadLastVideoPage();
   } catch (err) {
     setStatus(videoUploadStatus, err.message, "error");
   } finally {
@@ -155,34 +191,46 @@ document.getElementById("video-search-form").addEventListener("submit", async (e
 
 // -------------------------------------------------------------------- images
 const imageList = document.getElementById("image-list");
+const imagePagination = document.getElementById("image-pagination");
 const imageSearchResults = document.getElementById("image-search-results");
 const imageSearchStatus = document.getElementById("image-search-status");
 const imageUploadStatus = document.getElementById("image-upload-status");
 
-async function loadImages() {
+async function loadImages(page = 1) {
   imageList.innerHTML = `<div class="empty">Loading…</div>`;
+  imagePagination.innerHTML = "";
   try {
-    const { images } = await api("/images");
-    if (!images.length) {
-      renderEmpty(imageList, "No images indexed yet.");
+    const data = await api(`/images?page=${page}&page_size=${IMAGE_PAGE_SIZE}`);
+    if (!data.images.length) {
+      renderEmpty(imageList, page > 1 ? "No more images." : "No images indexed yet.");
       return;
     }
     imageList.innerHTML = "";
-    images.forEach((img) => {
+    data.images.forEach((img) => {
       const card = document.createElement("div");
       card.className = "image-card";
       card.innerHTML = `
-        <img src="${mediaUrl(img.path)}" alt="${filenameOf(img.path)}">
+        <img src="${mediaUrl(img.path)}" alt="${filenameOf(img.path)}" loading="lazy">
         <div class="meta">${filenameOf(img.path)}</div>
       `;
       imageList.appendChild(card);
     });
+    renderPagination(imagePagination, data, loadImages);
   } catch (err) {
     renderEmpty(imageList, `Failed to load images: ${err.message}`);
   }
 }
 
-document.getElementById("image-refresh-btn").addEventListener("click", loadImages);
+async function loadLastImagePage() {
+  try {
+    const probe = await api(`/images?page=1&page_size=1`);
+    loadImages(Math.max(1, Math.ceil(probe.total / IMAGE_PAGE_SIZE)));
+  } catch (err) {
+    loadImages(1);
+  }
+}
+
+document.getElementById("image-refresh-btn").addEventListener("click", () => loadImages(1));
 
 document.getElementById("image-upload-form").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -199,7 +247,7 @@ document.getElementById("image-upload-form").addEventListener("submit", async (e
     const data = await api("/images/insert", { method: "POST", body: form });
     setStatus(imageUploadStatus, `Indexed ${data.inserted.length} image(s).`, "success");
     input.value = "";
-    loadImages();
+    loadLastImagePage();
   } catch (err) {
     setStatus(imageUploadStatus, err.message, "error");
   } finally {
@@ -230,7 +278,7 @@ document.getElementById("image-search-form").addEventListener("submit", async (e
       const card = document.createElement("div");
       card.className = "image-card";
       card.innerHTML = `
-        <img src="${mediaUrl(path)}" alt="${filenameOf(path)}">
+        <img src="${mediaUrl(path)}" alt="${filenameOf(path)}" loading="lazy">
         <div class="meta">${filenameOf(path)} &middot; ${score.toFixed(2)}</div>
       `;
       imageSearchResults.appendChild(card);
@@ -241,5 +289,5 @@ document.getElementById("image-search-form").addEventListener("submit", async (e
 });
 
 // ------------------------------------------------------------------- initial
-loadVideos();
-loadImages();
+loadVideos(1);
+loadImages(1);

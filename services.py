@@ -64,13 +64,26 @@ def get_censor_objects(labels: list) -> CensorObjects:
     return _censor_objects[key]
 
 
-def list_indexed_videos() -> list:
-    """Read the video embeddings cache directly, without loading the CLIP model."""
+def _sorted_keys(f) -> list:
+    # Group keys are assigned as str(insertion_index) ("0", "1", ... "999"), so
+    # a plain string sort would put "10" before "2". Sort numerically instead.
+    return sorted(f.keys(), key=lambda k: int(k))
+
+
+def list_indexed_videos(page: int = 1, page_size: int = 24) -> dict:
+    """Read a page of the video embeddings cache, without loading the CLIP model.
+
+    Only the requested page's groups are opened — with a large index (e.g.
+    1000+ videos) that keeps this cheap regardless of how big the index gets.
+    """
     if not os.path.exists(VIDEO_CASH_PATH):
-        return []
-    items = []
+        return {"items": [], "total": 0}
     with h5py.File(VIDEO_CASH_PATH, "r") as f:
-        for key in f.keys():
+        keys = _sorted_keys(f)
+        total = len(keys)
+        start = (page - 1) * page_size
+        items = []
+        for key in keys[start : start + page_size]:
             grp = f[key]
             items.append(
                 {
@@ -80,16 +93,19 @@ def list_indexed_videos() -> list:
                     "duration": float(grp["duration"][0]),
                 }
             )
-    return items
+    return {"items": items, "total": total}
 
 
-def list_indexed_images() -> list:
-    """Read the image embeddings cache directly, without loading the CLIP model."""
+def list_indexed_images(page: int = 1, page_size: int = 24) -> dict:
+    """Read a page of the image embeddings cache, without loading the CLIP model."""
     if not os.path.exists(IMAGE_CASH_PATH):
-        return []
-    items = []
+        return {"items": [], "total": 0}
     with h5py.File(IMAGE_CASH_PATH, "r") as f:
-        for key in f.keys():
+        keys = _sorted_keys(f)
+        total = len(keys)
+        start = (page - 1) * page_size
+        items = []
+        for key in keys[start : start + page_size]:
             grp = f[key]
             items.append(
                 {
@@ -97,4 +113,4 @@ def list_indexed_images() -> list:
                     "path": grp["image"][0].decode("utf-8"),
                 }
             )
-    return items
+    return {"items": items, "total": total}
