@@ -50,9 +50,9 @@ function renderPagination(container, { page, page_size, total }, onChange) {
   }
   const totalPages = Math.max(1, Math.ceil(total / page_size));
   container.innerHTML = `
-    <button type="button" class="secondary" data-dir="prev" ${page <= 1 ? "disabled" : ""}>← Prev</button>
+    <button type="button" class="secondary" data-dir="prev" aria-label="Previous page" title="Previous page" ${page <= 1 ? "disabled" : ""}>←</button>
     <span>Page ${page} of ${totalPages} (${total} total)</span>
-    <button type="button" class="secondary" data-dir="next" ${page >= totalPages ? "disabled" : ""}>Next →</button>
+    <button type="button" class="secondary" data-dir="next" aria-label="Next page" title="Next page" ${page >= totalPages ? "disabled" : ""}>→</button>
   `;
   container.querySelector('[data-dir="prev"]').addEventListener("click", () => onChange(page - 1));
   container.querySelector('[data-dir="next"]').addEventListener("click", () => onChange(page + 1));
@@ -152,7 +152,10 @@ document.getElementById("video-search-form").addEventListener("submit", async (e
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query, united: true }),
     });
-    const entries = Object.entries(results || {});
+    const entries = Object.entries(results || {})
+      // sort clips within each video, and the videos themselves, by score desc
+      .map(([path, clips]) => [path, [...clips].sort((a, b) => b[2] - a[2])])
+      .sort((a, b) => b[1][0][2] - a[1][0][2]);
     if (!entries.length) {
       setStatus(videoSearchStatus, "No matches.", null);
       return;
