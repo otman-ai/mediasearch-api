@@ -1,0 +1,24 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+uploads/*
+!uploads/.gitkeep
+outputs/*
+!outputs/.gitkeep
+data/
+assets/
+*.h5
+.env
+
+# Safety net: never commit media/embeddings regardless of where they land
+*.mp4
+*.mkv
+*.mov
+*.avi
+*.webm
+*.mp3
+*.png
+*.jpg
+*.jpeg
+*.gif

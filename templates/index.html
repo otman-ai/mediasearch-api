@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MediaSearch</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <h1>MediaSearch</h1>
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="videos">Videos</button>
+      <button class="tab-btn" data-tab="images">Images</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- ---------------- Videos tab ---------------- -->
+    <section id="tab-videos" class="tab-panel active">
+      <div class="panel">
+        <h2>Search</h2>
+        <form id="video-search-form" class="row">
+          <input type="text" id="video-search-query" placeholder="e.g. dogs running" required>
+          <button type="submit">Search</button>
+        </form>
+        <div id="video-search-status" class="status"></div>
+        <div id="video-search-results" class="results"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Index videos</h2>
+        <form id="video-upload-form" class="row">
+          <input type="file" id="video-upload-input" name="videos" accept="video/*" multiple required>
+          <button type="submit">Insert</button>
+        </form>
+        <div id="video-upload-status" class="status"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Indexed videos</h2>
+          <button id="video-refresh-btn" class="secondary">Refresh</button>
+        </div>
+        <div id="video-list" class="video-grid"></div>
+      </div>
+    </section>
+
+    <!-- ---------------- Images tab ---------------- -->
+    <section id="tab-images" class="tab-panel">
+      <div class="panel">
+        <h2>Search</h2>
+        <form id="image-search-form" class="row">
+          <input type="text" id="image-search-query" placeholder="e.g. buggy" required>
+          <button type="submit">Search</button>
+        </form>
+        <div id="image-search-status" class="status"></div>
+        <div id="image-search-results" class="image-grid"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Index images</h2>
+        <form id="image-upload-form" class="row">
+          <input type="file" id="image-upload-input" name="images" accept="image/*" multiple required>
+          <button type="submit">Insert</button>
+        </form>
+        <div id="image-upload-status" class="status"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Indexed images</h2>
+          <button id="image-refresh-btn" class="secondary">Refresh</button>
+        </div>
+        <div id="image-list" class="image-grid"></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
